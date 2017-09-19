@@ -48,25 +48,20 @@ public:
 
   rmw_qos_profile_t custom_qos_profile;
   //コンストラクタ
-  TimeScale() {
-  }
-
-  void chatterCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
-    std::cout << "I hear :" << msg->height << std::endl;
+  TimeScale()
+  {
   }
 
   void SendcountUp() {
     if (count < 100) {
       img.header.stamp = rclcpp::Time::now();//ヘッダに送信時間を登録
-      std::cout << "publish:" << img.width << std::endl;
+      //std::cout << "publish:" << img.width << std::endl;
       chatter_pub->publish(img);//msg
     } else {
       std::cout << "end chat" << std::endl;
     }
     count++;
   }
-
-
 };
 
 
@@ -75,7 +70,7 @@ TimeScale Rosh;
 
 //コールバック
 void chatterCallbackImg(const sensor_msgs::msg::Image::SharedPtr msg) {
-  std::cout << "I hear :" << msg->height << std::endl;
+  //std::cout << "I hear :" << msg->height << std::endl;
   Rosh.SendcountUp();
 }
 
@@ -83,7 +78,6 @@ void chatterCallbackImg(const sensor_msgs::msg::Image::SharedPtr msg) {
 
 int main(int argc, char * argv[])
 {
-
   //初期化
   rclcpp::init(argc, argv);
   //TimeScale Rosh;
@@ -92,13 +86,9 @@ int main(int argc, char * argv[])
   Rosh.talker = rclcpp::node::Node::make_shared("talker");
   Rosh.listener = rclcpp::node::Node::make_shared("listener");
   Rosh.topic = std::string("chatter"); //ここで送信受信するトピックを決定
-  rclcpp::WallRate loop_rate(10);//ループ中の待ち時間
-
 
   // //QoSの設定
   Rosh.custom_qos_profile = rmw_qos_profile_reliable;  //今回使うQoS
-  //rmw_qos_profile_t c_custom_qos_profile = rmw_qos_profile_reliable;
-
 
   // //トピックを購読（監視）
   printf("Subscribing to topic '%s'\n", Rosh.topic.c_str());
@@ -113,21 +103,8 @@ int main(int argc, char * argv[])
   Rosh.img.width  = 250;
 
   Rosh.SendcountUp();
-  //size_t i = 1;
-
-  //rclcpp::spin(listener);
-  // while (rclcpp::ok()) {
-  //   img.header.stamp = rclcpp::Time::now();//ヘッダに送信時間を登録
-  //   std::cout << "publish:" << img.width << std::endl;
-  //   chatter_pub->publish(img);//msg
-  //   loop_rate.sleep();
-  //   rclcpp::spin_some(listener);
-  //   loop_rate.sleep();
-  // }
-  // CountUp(chatter_pub,img);
 
   rclcpp::spin(Rosh.listener);
-
   return 0;
 }
 
