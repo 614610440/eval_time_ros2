@@ -37,6 +37,22 @@ static const rmw_qos_profile_t rmw_qos_profile_history = {
 //コールバック
 void chatterCallbackImg(const sensor_msgs::msg::Image::SharedPtr msg) {
   std::cout << "I hear :" << msg->height << std::endl;
+
+}
+
+int count=0;
+
+
+void CountUp(rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr chatter , sensor_msgs::msg::Image img){
+  if (count<100){
+    img.header.stamp = rclcpp::Time::now();//ヘッダに送信時間を登録
+    std::cout << "publish:" << img.width << std::endl;
+    chatter->publish(img);//msg
+  }else{
+    std::cout << "end chat"<< std::endl;
+  }
+
+  count++;
 }
 
 
@@ -51,7 +67,7 @@ int main(int argc, char * argv[])
   auto talker = rclcpp::node::Node::make_shared("talker");
   auto listener = rclcpp::node::Node::make_shared("listener");
   auto topic = std::string("chatter"); //ここで送信受信するトピックを決定
-  rclcpp::WallRate loop_rate(5);//ループ中の待ち時間
+  rclcpp::WallRate loop_rate(10);//ループ中の待ち時間
 
 
   //QoSの設定
@@ -64,7 +80,7 @@ int main(int argc, char * argv[])
 
   //トピックへパブリッシュ（送信）
   printf("Publishing data on topic '%s'\n", topic.c_str());
-  auto chatter_pub  = talker      ->create_publisher<sensor_msgs::msg::Image>   (topic, custom_camera_qos_profile);
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr chatter_pub  = talker      ->create_publisher<sensor_msgs::msg::Image>   (topic, custom_camera_qos_profile);
 
   sensor_msgs::msg::Image img = sensor_msgs::msg::Image();
   img.height = 150;
@@ -74,16 +90,19 @@ int main(int argc, char * argv[])
   //size_t i = 1;
   
   //rclcpp::spin(listener);
-  while (rclcpp::ok()) {
-    img.header.stamp = rclcpp::Time::now();//ヘッダに送信時間を登録
-    std::cout << "publish:" << img.width << std::endl;
-    chatter_pub->publish(img);//msg
-    loop_rate.sleep();
-    rclcpp::spin_some(listener);
-    loop_rate.sleep();
-  }
+  // while (rclcpp::ok()) {
+  //   img.header.stamp = rclcpp::Time::now();//ヘッダに送信時間を登録
+  //   std::cout << "publish:" << img.width << std::endl;
+  //   chatter_pub->publish(img);//msg
+  //   loop_rate.sleep();
+  //   rclcpp::spin_some(listener);
+  //   loop_rate.sleep();
+  // }
+  CountUp(chatter_pub,img);
 
-
+  rclcpp::spin(listener);
 
   return 0;
 }
+
+
