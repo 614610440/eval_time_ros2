@@ -2,12 +2,14 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <chrono>
 
 #include "opencv2/highgui/highgui.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 #include "sensor_msgs/msg/image.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/int32.hpp"
 
 //https://github.com/ros2/ros2/wiki/Intra-Process-Communicationa
 // 
@@ -37,7 +39,8 @@ static const rmw_qos_profile_t rmw_qos_profile_history = {
 
 class TimeScale {
   int count = 0;
-  static const int maxSendTimes=100;
+  int SendingStep=0;
+  static const int maxSendTimes=10;
 
 public:
   std::shared_ptr<rclcpp::node::Node> talker;
@@ -45,71 +48,94 @@ public:
 
   std::string topic ;
 
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr chatter_pub;
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr chatter_pub;
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub;
 
-  sensor_msgs::msg::Image img;
-  sensor_msgs::msg::Image msg;
+
+  std_msgs::msg::Int32::SharedPtr msgPtr;
+  std_msgs::msg::Int32 msg;
 
   rmw_qos_profile_t custom_qos_profile;
 
+  bool usePtr=true;
+
+  std::chrono::system_clock::time_point start;
+  std::chrono::system_clock::time_point end1;
+  std::chrono::system_clock::time_point end2;
+  std::chrono::system_clock::time_point end3;
   //コンストラクタ
   TimeScale()
   {
   }
 
+
+
+  void startSendingData(){
+    if (SendingStep==0){
+      //msgPtr = std_msgs::msg::Int32::Ptr(new std_msgs::msg::Int32());
+      msgPtr = std_msgs::msg::Int32::SharedPtr(new std_msgs::msg::Int32());
+      count = 0;
+      start = std::chrono::system_clock::now();
+      usePtr = true;
+      msgPtr->data = 10;
+      SendcountUp();
+    }else {
+      end1 =  std::chrono::system_clock::now();
+
+      auto dur1 = end1 - start;        // 要した時間を計算
+      std::cout << maxSendTimes << " Data Sended" << std::endl;
+      std::cout <<"pointer Send Time:" <<std::chrono::duration_cast<std::chrono::nanoseconds>(dur1).count() << " nano sec \n";
+    }
+  }
+  
   void SendcountUp() {
-    if (count < maxSendTimes) {
-      img.header.stamp = rclcpp::Time::now();//ヘッダに送信時間を登録
-      std::cout << "publish:" << img.width << std::endl;
-      chatter_pub->publish(img);//msg
-    } else {
-      std::cout << "end chat" << std::endl;
+    if (count < maxSendTimes) {//uniquepointe ポインタは終了時に自動的に破棄するから二回目以降エラーになってる？
+      chatter_pub->publish(msgPtr);//msg
+    }else{
+      std::cout << "end chat Ptr" << std::endl;
+      SendingStep++;
+      startSendingData();
     }
     count++;
   }
-
-
-
-
 };
+
 
 TimeScale Rosh;
 
 //コールバック
-void chatterCallbackImg(const sensor_msgs::msg::Image::SharedPtr msg) {
-  std::cout << "I hear :" << msg->height << std::endl;
-  Rosh.SendcountUp();
+void chatterCallbackImg(const std_msgs::msg::Int32::SharedPtr msgPtr) {
+    printf(
+    "Published message with value: %d, and address: %0x", msgPtr->data,
+    reinterpret_cast<std::uintptr_t>(msgPtr.get()));
+  std::cout << std::endl;
+  if (Rosh.usePtr==true){
+    Rosh.SendcountUp();
+  }
 }
-
 
 
 int main(int argc, char * argv[])
 {
   //初期化
   rclcpp::init(argc, argv);
-
   //ノードの初期化
   Rosh.talker = rclcpp::node::Node::make_shared("talker");
   Rosh.listener = rclcpp::node::Node::make_shared("listener");
   Rosh.topic = std::string("chatter"); //ここで送信受信するトピックを決定
 
   // //QoSの設定
-  Rosh.custom_qos_profile = rmw_qos_profile_reliable;  //今回使うQoS
+  Rosh.custom_qos_profile = rmw_qos_profile_best_effort;  //今回使うQoS
 
   // //トピックを購読（監視）
   printf("Subscribing to topic '%s'\n", Rosh.topic.c_str());
-  Rosh.sub          = Rosh.listener    ->create_subscription<sensor_msgs::msg::Image>(Rosh.topic, chatterCallbackImg, Rosh.custom_qos_profile);
+  Rosh.sub          = Rosh.listener    ->create_subscription<std_msgs::msg::Int32>(Rosh.topic, chatterCallbackImg, Rosh.custom_qos_profile);
 
   // //トピックへパブリッシュ（送信）
   printf("Publishing data on topic '%s'\n", Rosh.topic.c_str());
-  Rosh.chatter_pub  = Rosh.talker      ->create_publisher<sensor_msgs::msg::Image>   (Rosh.topic, Rosh.custom_qos_profile);
+  Rosh.chatter_pub  = Rosh.talker      ->create_publisher<std_msgs::msg::Int32>   (Rosh.topic, Rosh.custom_qos_profile);
 
-  Rosh.img = sensor_msgs::msg::Image();
-  Rosh.img.height = 150;
-  Rosh.img.width  = 250;
-
-  Rosh.SendcountUp();
+  Rosh.startSendingData();
 
   rclcpp::spin(Rosh.listener);
   return 0;

@@ -61,7 +61,7 @@ public:
   void SendcountUp() {
     if (count < maxSendTimes) {
       img.header.stamp = rclcpp::Time::now();//ヘッダに送信時間を登録
-      std::cout << "publish:" << img.width << std::endl;
+      //std::cout << "publish:" << img.width << std::endl;
       chatter_pub->publish(img);//msg
     } else {
       std::cout << "end chat" << std::endl;
@@ -78,7 +78,7 @@ TimeScale Rosh;
 
 //コールバック
 void chatterCallbackImg(const sensor_msgs::msg::Image::SharedPtr msg) {
-  std::cout << "I hear :" << msg->height << std::endl;
+  //std::cout << "I hear :" << msg->height << std::endl;
   Rosh.SendcountUp();
 }
 
